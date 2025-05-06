@@ -100,6 +100,7 @@ dist
 # vuepress build output
 .vuepress/dist
 
+public/tfjs_model
 # vuepress v2.x temp and cache directory
 .temp
 .cache
