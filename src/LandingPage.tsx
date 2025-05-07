@@ -64,6 +64,34 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
       </div>
     </section>
 
+    {/* Call to Action for Farmers & Investors */}
+    <section className="py-5 py-md-6 text-center bg-gradient" style={{ background: 'linear-gradient(135deg, var(--bs-success-bg-subtle) 0%, var(--bs-teal-bg-subtle) 100%)' }}>
+        <div className="container">
+            <div className="row justify-content-center">
+                <div className="col-lg-9 col-xl-8">
+                    <h2 className="display-5 fw-bold mb-3 text-success-emphasis">Join the Agricultural Revolution</h2>
+                    <p className="lead text-muted mb-5">
+                        Whether you're a farmer seeking to boost your yields or an investor looking for a high-impact opportunity, AgroNirbhul offers the tools and the vision for a smarter agricultural future.
+                    </p>
+                    <div className="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                        <Link
+                            className="btn btn-success btn-lg rounded-pill px-5 py-3 shadow-sm"
+                            to="/register"
+                        >
+                            <i className="bi bi-person-plus-fill me-2"></i>Farmers: Join Now
+                        </Link>
+                        <Link
+                            className="btn btn-outline-primary btn-lg rounded-pill px-5 py-3 shadow-sm"
+                            to="/investors" // <-- Link to the new investor page
+                        >
+                            <i className="bi bi-briefcase-fill me-2"></i>Investors: Learn More
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
     {/* Problem/Solution Section */}
     <section className="py-5 py-md-6">
       <div className="container text-center">
@@ -195,19 +223,16 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
         </div>
     </section>
 
-    {/* Investor Information Section */}
-    <section className="py-5 py-md-6 text-white" style={{ background: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("/investor-bg.jpg") center center / cover no-repeat' }}> {/* Add a placeholder /investor-bg.jpg */}
+    {/* Investor Specific CTA */}
+    <section className="py-5 py-md-6 text-white" style={{ background: 'linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url("https://via.placeholder.com/1920x600/198754/ffffff?Text=Investor+CTA+Background") center center / cover no-repeat' }}>
         <div className="container text-center">
-            <i className="bi bi-rocket-launch-fill fs-1 text-success mb-3"></i>
-            <h2 className="display-5 fw-bolder mb-3">
-                Partner with <span className="text-success">AgroNirbhul</span>
-            </h2>
-            <p className="lead mb-5 col-lg-8 mx-auto text-white-75">
-                Join us in revolutionizing agriculture in Bangladesh. We offer a compelling investment opportunity with strong growth potential and profound social impact.
+            <h2 className="display-5 fw-bold mb-3">Partner with AgroNirbhul</h2>
+            <p className="lead fs-4 mb-4">
+                Drive innovation and create lasting value in Bangladesh's agricultural heartland.
             </p>
-            <button className="btn btn-success btn-lg rounded-pill px-5 py-3 shadow">
+            <Link to="/investors#contact" className="btn btn-light btn-lg rounded-pill px-5 py-3 shadow"> {/* Updated to Link */}
                 <i className="bi bi-file-earmark-person-fill me-2"></i>Request Investor Deck
-            </button>
+            </Link>
         </div>
     </section>
 
@@ -228,7 +253,7 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
                             </h2>
                             <div id="faqFarmerCollapse1" className="accordion-collapse collapse" aria-labelledby="faqFarmerHeading1" data-bs-parent="#faqFarmer">
                                 <div className="accordion-body small text-muted">
-                                আমরা বিভিন্ন সাশ্রয়ী সাবস্ক্রিপশন প্ল্যান অফার করবো। প্রথম দিকের ব্যবহারকারী এবং সমবায় সমিতির জন্য বিশেষ ছাড় থাকবে। (We will offer affordable subscription plans. Special discounts for early users and cooperatives.)
+                                অ্যাপটি ব্যবহার করার জন্য বিভিন্ন উপায় বিবেচনা করা হচ্ছে। ক্ষুদ্র কৃষকদের সীমিত আয়ের কথা মাথায় রেখে, মূল রোগ নির্ণয়ের সুবিধাটি বিনামূল্যে দেওয়ার পরিকল্পনা রয়েছে যাতে বেশি সংখ্যক কৃষক এটি ব্যবহার করতে পারেন এবং এর সুবিধা বুঝতে পারেন । অতিরিক্ত বা উন্নত সুবিধার জন্য সাবস্ক্রিপশন ভিত্তিক মডেল অথবা কৃষি বিষয়ক অন্যান্য বাণিজ্যিক অংশীদারদের সাথে কাজের সুযোগ তৈরি করে আয় করার পরিকল্পনা আছে । অর্থাৎ, রোগবালাই শনাক্তকরণের প্রাথমিক ব্যবহারের জন্য কৃষকদের হয়তো কোনো খরচই লাগবে না।
                                 </div>
                             </div>
                         </div>
@@ -241,7 +266,7 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
                             </h2>
                             <div id="faqFarmerCollapse2" className="accordion-collapse collapse" aria-labelledby="faqFarmerHeading2" data-bs-parent="#faqFarmer">
                                 <div className="accordion-body small text-muted">
-                                একটি সাধারণ অ্যান্ড্রয়েড স্মার্টফোন ও ইন্টারনেট সংযোগ। আমরা এসএমএস ভিত্তিক তথ্য ও কম ডেটা ব্যবহারের জন্যও কাজ করছি। (A basic Android smartphone and internet. We're also working on SMS-based info and low-data usage.)
+                                এই অ্যাপটি ব্যবহারের জন্য একটি স্মার্টফোন লাগবে । যেহেতু বাংলাদেশের অনেক কৃষকই এখন স্মার্টফোন ব্যবহার করেন, তাই এটি ব্যবহার করা সহজ হবে । এছাড়াও, অনেক ক্ষেত্রে ইন্টারনেট সংযোগ ছাড়াও যাতে অ্যাপটির মূল কাজগুলো (যেমন ছবি তোলা এবং পুরনো তথ্য দেখা) করা যায়, সেদিকে খেয়াল রাখা হচ্ছে । সম্পূর্ণ রোগ নির্ণয় বা নতুন তথ্য পেতে ইন্টারনেট সংযোগ প্রয়োজন হতে পারে, তবে অফলাইনে ব্যবহারের কিছু সুবিধা থাকবে।
                                 </div>
                             </div>
                         </div>
@@ -260,7 +285,7 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
                             </h2>
                             <div id="faqInvestorCollapse1" className="accordion-collapse collapse" aria-labelledby="faqInvestorHeading1" data-bs-parent="#faqInvestor">
                                 <div className="accordion-body small text-muted">
-                                Bangladesh has millions of smallholder farmers. Our cloud-native SaaS platform is designed for massive scalability across the nation and potentially regionally.
+                                Bangladesh has a large agricultural sector with approximately 15 to 16.5 million farm holdings managing about 8.5 million hectares of cultivable land. The sector contributes significantly to the national GDP and employs a large portion of the workforce. Crop losses due to pests and diseases are substantial, averaging 10-25% annually, highlighting a significant need for improved management. The AI-driven mobile application offers a scalable solution to reach this large base of smallholder farmers. The backend infrastructure is designed to be robust and scalable using cloud platforms (AWS, Azure, or GCP) to handle a growing user base and increasing data.
                                 </div>
                             </div>
                         </div>
@@ -273,7 +298,7 @@ const LandingPage: React.FC<{}> = () => ( // Props might be empty now
                             </h2>
                             <div id="faqInvestorCollapse2" className="accordion-collapse collapse" aria-labelledby="faqInvestorHeading2" data-bs-parent="#faqInvestor">
                                 <div className="accordion-body small text-muted">
-                                Our hyper-local AI models, deep farmer empathy, full Bengali localization (including voice), strong local partnerships, and a first-mover advantage in comprehensive digital advisory.
+                                While similar platforms exist globally and regionally, the proposed AI solution aims for hyper-localization for Bangladesh. This involves tailoring the diagnostic capabilities and management advice to specific local crops, pests, diseases, and agro-ecological conditions. A key competitive advantage is designing the solution explicitly for the context of low literacy and limited connectivity among many smallholder farmers, incorporating features like simple visual interfaces, audio support, and offline functionality. Building strong partnerships with local institutions like the Department of Agricultural Extension (DAE), research institutions (BARI, BRRI), and farmer cooperatives is also seen as a way to gain an advantage over global platforms and build trust.
                                 </div>
                             </div>
                         </div>

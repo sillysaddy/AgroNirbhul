@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import * as tf from '@tensorflow/tfjs';
-import { Link } from 'react-router-dom'; // For a back button if needed
+import { Link } from 'react-router-dom';
+import { remediesData, type RemedyContent, type RemediesCollection } from './remedies'; // <-- Import from remedies.ts
 
 // Define the class names based on your model's training output
 // IMPORTANT: Verify this order against the training notebook from the GitHub repo.
@@ -50,9 +51,12 @@ const DiseaseDetection: React.FC = () => {
   const [model, setModel] = useState<tf.LayersModel | tf.GraphModel | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [prediction, setPrediction] = useState<string | null>(null);
-  const [loading, setLoading] = useState<boolean>(false); // For model loading and prediction
-  const [modelLoading, setModelLoading] = useState<boolean>(true); // Specifically for initial model load
+  const [prediction, setPrediction] = useState<string | null>(null); // Stores formatted prediction string
+  const [predictedDiseaseKey, setPredictedDiseaseKey] = useState<string | null>(null); // Stores the key for remediesData
+  const [currentRemedy, setCurrentRemedy] = useState<RemedyContent | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'bn'>('en');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [modelLoading, setModelLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -66,7 +70,6 @@ const DiseaseDetection: React.FC = () => {
         console.log(`TF.js backend set to: ${tf.getBackend()}`);
         
         console.log('Loading model...');
-        // Ensure the path to model.json is correct relative to the public folder
         const loadedModel = await tf.loadGraphModel('/tfjs_model/model.json');
         setModel(loadedModel);
         console.log('Model loaded successfully');
@@ -77,7 +80,6 @@ const DiseaseDetection: React.FC = () => {
         setModelLoading(false);
       }
     };
-
     initializeTfAndLoadModel();
   }, []);
 
@@ -87,6 +89,8 @@ const DiseaseDetection: React.FC = () => {
       setSelectedImage(file);
       setPreviewUrl(URL.createObjectURL(file));
       setPrediction(null);
+      setPredictedDiseaseKey(null);
+      setCurrentRemedy(null);
       setError(null);
     }
   };
@@ -96,47 +100,75 @@ const DiseaseDetection: React.FC = () => {
       setError('Please select an image and ensure the model is loaded.');
       return;
     }
-
     setLoading(true);
     setError(null);
     setPrediction(null);
+    setPredictedDiseaseKey(null);
+    setCurrentRemedy(null);
 
     try {
       const imageElement = imageRef.current;
       // Ensure the image is loaded before processing
-      await new Promise(resolve => {
-        if (imageElement.complete) {
-          resolve(true);
+      await new Promise<void>(resolve => { // Changed to Promise<void>
+        if (imageElement.complete && imageElement.naturalHeight !== 0) { // Added check for naturalHeight
+          resolve();
         } else {
-          imageElement.onload = () => resolve(true);
+          imageElement.onload = () => resolve();
+          imageElement.onerror = () => { // Handle image loading errors
+            setError('Failed to load image for prediction.');
+            setLoading(false);
+            resolve(); // Resolve to stop further processing in this path
+          };
         }
       });
 
-      let tensor = tf.browser.fromPixels(imageElement)
-        .resizeNearestNeighbor([224, 224]) // Standard MobileNetV2 input size
-        .toFloat()
-        .div(tf.scalar(255.0)) // Normalize to [0, 1]
-        .expandDims(); // Add batch dimension
+      // Check if an error occurred during image loading
+      if (error && !loading) return;
 
-      const predictions = model.predict(tensor) as tf.Tensor;
-      const predictedIndex = (await predictions.argMax(1).data())[0];
+
+      let tensor = tf.browser.fromPixels(imageElement)
+        .resizeNearestNeighbor([224, 224])
+        .toFloat()
+        .div(tf.scalar(255.0))
+        .expandDims();
+
+      const predictionsTensor = model.predict(tensor) as tf.Tensor;
+      const predictedIndex = (await predictionsTensor.argMax(1).data())[0];
       
       if (predictedIndex >= 0 && predictedIndex < CLASS_NAMES.length) {
-        const predictedClass = CLASS_NAMES[predictedIndex].replace(/___/g, ' - ').replace(/_/g, ' ');
-        setPrediction(`${predictedClass}`);
+        const diseaseKey = CLASS_NAMES[predictedIndex];
+        setPredictedDiseaseKey(diseaseKey);
+        const formattedPrediction = diseaseKey.replace(/___/g, ' - ').replace(/_/g, ' ');
+        setPrediction(formattedPrediction);
+
+        if (remediesData[diseaseKey]) {
+          setCurrentRemedy(remediesData[diseaseKey][selectedLanguage]);
+        } else {
+          setCurrentRemedy(null); 
+          // Keep existing error if it's a model load error, otherwise set remedy not found
+          if (!error?.startsWith('Failed to load the prediction model')) {
+             setError(`Remedy information not yet available for ${formattedPrediction}.`);
+          }
+        }
       } else {
         setError('Prediction index out of bounds. Please check CLASS_NAMES.');
       }
-
-      tf.dispose([tensor, predictions]);
-
+      tf.dispose([tensor, predictionsTensor]);
     } catch (err) {
       console.error('Prediction error:', err);
       setError('Failed to predict the disease. The image might be corrupted or an unexpected error occurred.');
     } finally {
-      setLoading(false);
+      // Only set loading to false if it wasn't already set by image error handler
+      if (loading) setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Update remedy display if language changes and a remedy is available
+    if (predictedDiseaseKey && remediesData[predictedDiseaseKey]) {
+      setCurrentRemedy(remediesData[predictedDiseaseKey][selectedLanguage]);
+    }
+  }, [selectedLanguage, predictedDiseaseKey]);
 
   return (
     <div className="container py-4 py-lg-5">
@@ -163,7 +195,8 @@ const DiseaseDetection: React.FC = () => {
             </div>
           )}
 
-          {error && (
+          {/* Display general errors if no prediction is made yet, or if it's a model loading error */}
+          {error && !prediction && (
             <div className="alert alert-danger shadow-sm rounded-3" role="alert">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>{error}
             </div>
@@ -203,11 +236,10 @@ const DiseaseDetection: React.FC = () => {
                     alt="Selected crop leaf"
                     className="img-fluid rounded-3 border shadow-sm"
                     style={{ maxHeight: '300px', border: '3px solid var(--bs-success-border-subtle)' }}
-                    crossOrigin="anonymous" // Important for tf.browser.fromPixels
+                    crossOrigin="anonymous"
                   />
                 </div>
               )}
-
               <div className="d-grid">
                 <button
                   onClick={handlePredict}
@@ -227,15 +259,85 @@ const DiseaseDetection: React.FC = () => {
                 </button>
               </div>
 
-              {prediction && !error && (
+              {prediction && ( // Show prediction and remedy-specific error if any
                 <div className="mt-4 p-4 bg-success-subtle border border-success-subtle rounded-4 shadow-sm">
-                  <h3 className="fs-4 fw-bold text-success-emphasis mb-2">
+                  <h3 className="fs-4 fw-bold text-success-emphasis mb-3">
                     <i className="bi bi-check-circle-fill me-2"></i>Prediction Result:
                   </h3>
                   <p className="fs-5 mb-0">{prediction}</p>
-                  <p className="small text-muted mt-2">
+                  {/* Display error related to remedy not found, only if there isn't a more general prediction error */}
+                  {error && error.startsWith('Remedy information not yet available') && (
+                     <p className="text-danger mt-2 small"><i className="bi bi-exclamation-triangle-fill me-1"></i>{error}</p>
+                  )}
+                   <p className="small text-muted mt-2">
                     Note: This is an AI-generated prediction. For critical decisions, please consult with an agricultural expert.
                   </p>
+                </div>
+              )}
+
+              {currentRemedy && (
+                <div className="mt-4 p-4 bg-light border rounded-4 shadow-sm">
+                  <div className="d-flex justify-content-between align-items-center mb-3">
+                    <h3 className="fs-4 fw-bold text-success-emphasis mb-0">
+                      <i className="bi bi-journal-medical me-2"></i>Remedy Information for {currentRemedy.diseaseName}
+                    </h3>
+                    <div>
+                      <button
+                        className={`btn btn-sm ${selectedLanguage === 'en' ? 'btn-success' : 'btn-outline-success'} me-2 rounded-pill`}
+                        onClick={() => setSelectedLanguage('en')}
+                      >
+                        English
+                      </button>
+                      <button
+                        className={`btn btn-sm ${selectedLanguage === 'bn' ? 'btn-success' : 'btn-outline-success'} rounded-pill`}
+                        onClick={() => setSelectedLanguage('bn')}
+                      >
+                        বাংলা
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <h5 className="fw-semibold text-success">Description:</h5>
+                    <p className="text-muted">{currentRemedy.description}</p>
+                  </div>
+                  <div className="mb-3">
+                    <h5 className="fw-semibold text-success">Why it Happens:</h5>
+                    <p className="text-muted">{currentRemedy.whyItHappens}</p>
+                  </div>
+                  <div className="row g-3 mb-3">
+                    <div className="col-md-6">
+                      <h5 className="fw-semibold text-success">Do's:</h5>
+                      <ul className="list-unstyled text-muted">
+                        {currentRemedy.dos.map((item, index) => (
+                          <li key={index}><i className="bi bi-check-lg text-success me-2"></i>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="col-md-6">
+                      <h5 className="fw-semibold text-danger">Don'ts:</h5>
+                      <ul className="list-unstyled text-muted">
+                        {currentRemedy.donts.map((item, index) => (
+                          <li key={index}><i className="bi bi-x-lg text-danger me-2"></i>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <h5 className="fw-semibold text-success">What to do from now:</h5>
+                    <p className="text-muted">{currentRemedy.whatToDoNow}</p>
+                  </div>
+                  <div className="mb-3">
+                    <h5 className="fw-semibold text-success">Suggested Medicine / Treatment:</h5>
+                    <h6 className="fw-semibold mt-2">Cultural Practice:</h6>
+                    <p className="text-muted">{currentRemedy.culturalPractice}</p>
+                    <h6 className="fw-semibold mt-2">Chemical Control:</h6>
+                    <p className="text-muted">{currentRemedy.chemicalControl}</p>
+                  </div>
+                  <div className="alert alert-warning small p-3 rounded-3">
+                    <i className="bi bi-info-circle-fill me-2"></i>
+                    <strong>Important:</strong> {currentRemedy.importantNote}
+                  </div>
                 </div>
               )}
             </div>

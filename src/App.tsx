@@ -4,7 +4,8 @@ import LandingPage from './LandingPage';
 import LoginPage from './LoginPage';
 import RegistrationPage from './RegistrationPage';
 import DashboardPage from './DashboardPage';
-import DiseaseDetection from './DiseaseDetection'; // Import DiseaseDetection
+import DiseaseDetection from './DiseaseDetection';
+import InvestorPage from './InvestorPage'; // <-- Import the new page
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -33,6 +34,10 @@ function App() {
       <Route
         path="/"
         element={<LandingPage />} // Pass navigate if needed for buttons, or use Link in LandingPage
+      />
+      <Route
+        path="/investors" // <-- Add route for investor page
+        element={<InvestorPage />}
       />
       <Route
         path="/login"
