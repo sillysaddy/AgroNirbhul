@@ -60,6 +60,35 @@ const DiseaseDetection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  const uiText = {
+    en: {
+      remedyTitle: "Remedy",
+      description: "Description",
+      whyItHappens: "Why it Happens",
+      preventativeMeasures: "Preventative Measures",
+      dos: "Do's",
+      donts: "Don'ts",
+      whatToDoNow: "What to Do Now",
+      suggestedTreatment: "Suggested Treatment",
+      culturalPractice: "Cultural Practice",
+      chemicalControl: "Chemical Control",
+      importantNote: "Important Note",
+    },
+    bn: {
+      remedyTitle: "প্রতিকার",
+      description: "বিবরণ",
+      whyItHappens: "কেন হয়",
+      preventativeMeasures: "প্রতিরোধমূলক ব্যবস্থা",
+      dos: "করণীয়",
+      donts: "বর্জনীয়",
+      whatToDoNow: "এখন কী করবেন",
+      suggestedTreatment: "প্রস্তাবিত প্রতিকার",
+      culturalPractice: "পরিচর্যা পদ্ধতি",
+      chemicalControl: "রাসায়নিক নিয়ন্ত্রণ",
+      importantNote: "গুরুত্বপূর্ণ বিষয়",
+    }
+  };
+
   useEffect(() => {
     const initializeTfAndLoadModel = async () => {
       setModelLoading(true);
@@ -108,23 +137,17 @@ const DiseaseDetection: React.FC = () => {
 
     try {
       const imageElement = imageRef.current;
-      // Ensure the image is loaded before processing
-      await new Promise<void>(resolve => { // Changed to Promise<void>
-        if (imageElement.complete && imageElement.naturalHeight !== 0) { // Added check for naturalHeight
+      await new Promise<void>((resolve, reject) => { // Added reject for error handling
+        if (imageElement.complete && imageElement.naturalHeight !== 0) {
           resolve();
         } else {
           imageElement.onload = () => resolve();
-          imageElement.onerror = () => { // Handle image loading errors
+          imageElement.onerror = () => {
             setError('Failed to load image for prediction.');
-            setLoading(false);
-            resolve(); // Resolve to stop further processing in this path
+            reject(new Error('Image loading failed')); // Reject promise on error
           };
         }
       });
-
-      // Check if an error occurred during image loading
-      if (error && !loading) return;
-
 
       let tensor = tf.browser.fromPixels(imageElement)
         .resizeNearestNeighbor([224, 224])
@@ -145,7 +168,6 @@ const DiseaseDetection: React.FC = () => {
           setCurrentRemedy(remediesData[diseaseKey][selectedLanguage]);
         } else {
           setCurrentRemedy(null); 
-          // Keep existing error if it's a model load error, otherwise set remedy not found
           if (!error?.startsWith('Failed to load the prediction model')) {
              setError(`Remedy information not yet available for ${formattedPrediction}.`);
           }
@@ -154,17 +176,21 @@ const DiseaseDetection: React.FC = () => {
         setError('Prediction index out of bounds. Please check CLASS_NAMES.');
       }
       tf.dispose([tensor, predictionsTensor]);
-    } catch (err) {
-      console.error('Prediction error:', err);
-      setError('Failed to predict the disease. The image might be corrupted or an unexpected error occurred.');
+    } catch (err: any) { // Catch any error
+      console.error('Prediction or image loading error:', err);
+      if (!error) {
+        if (err.message === 'Image loading failed') {
+            if (!error) setError('Failed to load image for prediction.');
+        } else {
+            setError('Failed to predict the disease. The image might be corrupted or an unexpected error occurred.');
+        }
+      }
     } finally {
-      // Only set loading to false if it wasn't already set by image error handler
-      if (loading) setLoading(false);
+      setLoading(false); // Always set loading to false when the operation is complete
     }
   };
 
   useEffect(() => {
-    // Update remedy display if language changes and a remedy is available
     if (predictedDiseaseKey && remediesData[predictedDiseaseKey]) {
       setCurrentRemedy(remediesData[predictedDiseaseKey][selectedLanguage]);
     }
@@ -195,14 +221,13 @@ const DiseaseDetection: React.FC = () => {
             </div>
           )}
 
-          {/* Display general errors if no prediction is made yet, or if it's a model loading error */}
-          {error && !prediction && (
+          {error && !prediction && !modelLoading && ( // Show general errors if not model loading and no prediction yet
             <div className="alert alert-danger shadow-sm rounded-3" role="alert">
               <i className="bi bi-exclamation-triangle-fill me-2"></i>{error}
             </div>
           )}
 
-          {!modelLoading && !error && !model && (
+          {!modelLoading && !model && !error && ( // Model failed to load, and no other error is active
              <div className="alert alert-warning shadow-sm rounded-3" role="alert">
               <i className="bi bi-cone-striped me-2"></i>Model not available. Cannot perform predictions.
             </div>
@@ -246,26 +271,33 @@ const DiseaseDetection: React.FC = () => {
                   disabled={!model || !selectedImage || loading || modelLoading}
                   className="btn btn-success btn-lg rounded-pill py-3"
                 >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Analyzing Image...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-magic me-2"></i>Detect Disease
-                    </>
-                  )}
+                  {(() => {
+                    if (loading) {
+                      return (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Analyzing Image...
+                        </>
+                      );
+                    } else if (prediction) { // If loading is false and there's a prediction
+                      return <>Analysis Complete</>;
+                    } else { // Initial state or after clearing prediction
+                      return (
+                        <>
+                          <i className="bi bi-magic me-2"></i>Detect Disease
+                        </>
+                      );
+                    }
+                  })()}
                 </button>
               </div>
 
-              {prediction && ( // Show prediction and remedy-specific error if any
+              {prediction && (
                 <div className="mt-4 p-4 bg-success-subtle border border-success-subtle rounded-4 shadow-sm">
                   <h3 className="fs-4 fw-bold text-success-emphasis mb-3">
                     <i className="bi bi-check-circle-fill me-2"></i>Prediction Result:
                   </h3>
                   <p className="fs-5 mb-0">{prediction}</p>
-                  {/* Display error related to remedy not found, only if there isn't a more general prediction error */}
                   {error && error.startsWith('Remedy information not yet available') && (
                      <p className="text-danger mt-2 small"><i className="bi bi-exclamation-triangle-fill me-1"></i>{error}</p>
                   )}
@@ -274,69 +306,164 @@ const DiseaseDetection: React.FC = () => {
                   </p>
                 </div>
               )}
+              
+              {/* Error display specifically for prediction/remedy issues, shown if a prediction was made */}
+              {error && prediction && !error.startsWith('Remedy information not yet available') && (
+                <div className="alert alert-danger shadow-sm rounded-3 mt-3" role="alert">
+                  <i className="bi bi-exclamation-triangle-fill me-2"></i>{error}
+                </div>
+              )}
+
 
               {currentRemedy && (
-                <div className="mt-4 p-4 bg-light border rounded-4 shadow-sm">
-                  <div className="d-flex justify-content-between align-items-center mb-3">
-                    <h3 className="fs-4 fw-bold text-success-emphasis mb-0">
-                      <i className="bi bi-journal-medical me-2"></i>Remedy Information for {currentRemedy.diseaseName}
-                    </h3>
-                    <div>
-                      <button
-                        className={`btn btn-sm ${selectedLanguage === 'en' ? 'btn-success' : 'btn-outline-success'} me-2 rounded-pill`}
-                        onClick={() => setSelectedLanguage('en')}
-                      >
-                        English
-                      </button>
-                      <button
-                        className={`btn btn-sm ${selectedLanguage === 'bn' ? 'btn-success' : 'btn-outline-success'} rounded-pill`}
-                        onClick={() => setSelectedLanguage('bn')}
-                      >
-                        বাংলা
-                      </button>
+                <div className="mt-4">
+                  <div className="card border-0 shadow-lg rounded-4">
+                    <div className="card-header bg-gradient bg-success-subtle d-flex justify-content-between align-items-center rounded-top-4 py-3">
+                      <h3 className="fs-5 fw-bold text-success-emphasis mb-0">
+                        <i className="bi bi-journal-medical me-2"></i>
+                        {uiText[selectedLanguage].remedyTitle}: <span className="fw-bolder">{currentRemedy.diseaseName}</span>
+                      </h3>
+                      <div>
+                        <button
+                          className={`btn btn-sm ${selectedLanguage === 'en' ? 'btn-success' : 'btn-outline-success'} me-1 rounded-pill px-3`}
+                          onClick={() => setSelectedLanguage('en')}
+                        >
+                          EN
+                        </button>
+                        <button
+                          className={`btn btn-sm ${selectedLanguage === 'bn' ? 'btn-success' : 'btn-outline-success'} rounded-pill px-3`}
+                          onClick={() => setSelectedLanguage('bn')}
+                        >
+                          BN
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                    <div className="card-body p-0"> {/* Removed padding here to let accordion items manage it */}
+                      <div className="accordion accordion-flush" id="remedyAccordion">
+                        {/* Description */}
+                        <div className="accordion-item">
+                          <h2 className="accordion-header" id="remedy-desc-heading">
+                            <button className="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-desc-collapse" aria-expanded="true" aria-controls="remedy-desc-collapse">
+                              <i className="bi bi-info-circle-fill me-2 text-primary"></i>{uiText[selectedLanguage].description}
+                            </button>
+                          </h2>
+                          <div id="remedy-desc-collapse" className="accordion-collapse collapse show" aria-labelledby="remedy-desc-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body text-muted">
+                              {currentRemedy.description}
+                            </div>
+                          </div>
+                        </div>
 
-                  <div className="mb-3">
-                    <h5 className="fw-semibold text-success">Description:</h5>
-                    <p className="text-muted">{currentRemedy.description}</p>
-                  </div>
-                  <div className="mb-3">
-                    <h5 className="fw-semibold text-success">Why it Happens:</h5>
-                    <p className="text-muted">{currentRemedy.whyItHappens}</p>
-                  </div>
-                  <div className="row g-3 mb-3">
-                    <div className="col-md-6">
-                      <h5 className="fw-semibold text-success">Do's:</h5>
-                      <ul className="list-unstyled text-muted">
-                        {currentRemedy.dos.map((item, index) => (
-                          <li key={index}><i className="bi bi-check-lg text-success me-2"></i>{item}</li>
-                        ))}
-                      </ul>
+                        {/* Why it Happens */}
+                        <div className="accordion-item">
+                          <h2 className="accordion-header" id="remedy-why-heading">
+                            <button className="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-why-collapse" aria-expanded="false" aria-controls="remedy-why-collapse">
+                              <i className="bi bi-patch-question-fill me-2 text-info"></i>{uiText[selectedLanguage].whyItHappens}
+                            </button>
+                          </h2>
+                          <div id="remedy-why-collapse" className="accordion-collapse collapse" aria-labelledby="remedy-why-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body text-muted">
+                              {currentRemedy.whyItHappens}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Do's and Don'ts */}
+                        <div className="accordion-item">
+                          <h2 className="accordion-header" id="remedy-dosdonts-heading">
+                            <button className="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-dosdonts-collapse" aria-expanded="false" aria-controls="remedy-dosdonts-collapse">
+                              <i className="bi bi-shield-fill-check me-2 text-success"></i>{uiText[selectedLanguage].preventativeMeasures}
+                            </button>
+                          </h2>
+                          <div id="remedy-dosdonts-collapse" className="accordion-collapse collapse" aria-labelledby="remedy-dosdonts-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body">
+                              <div className="row g-3">
+                                <div className="col-md-6">
+                                  <h6 className="fw-bold text-success mb-2">
+                                    <i className="bi bi-check-circle-fill me-2"></i>{uiText[selectedLanguage].dos}
+                                  </h6>
+                                  <ul className="list-unstyled ps-3">
+                                    {currentRemedy.dos.map((item, idx) => (
+                                      <li key={idx} className="mb-1 d-flex">
+                                        <i className="bi bi-check-lg text-success me-2 mt-1"></i><span className="text-muted">{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                                <div className="col-md-6">
+                                  <h6 className="fw-bold text-danger mb-2">
+                                    <i className="bi bi-x-circle-fill me-2"></i>{uiText[selectedLanguage].donts}
+                                  </h6>
+                                  <ul className="list-unstyled ps-3">
+                                    {currentRemedy.donts.map((item, idx) => (
+                                      <li key={idx} className="mb-1 d-flex">
+                                        <i className="bi bi-x-lg text-danger me-2 mt-1"></i><span className="text-muted">{item}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* What to do from now */}
+                        <div className="accordion-item">
+                          <h2 className="accordion-header" id="remedy-whattodo-heading">
+                            <button className="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-whattodo-collapse" aria-expanded="false" aria-controls="remedy-whattodo-collapse">
+                              <i className="bi bi-forward-fill me-2 text-warning"></i>{uiText[selectedLanguage].whatToDoNow}
+                            </button>
+                          </h2>
+                          <div id="remedy-whattodo-collapse" className="accordion-collapse collapse" aria-labelledby="remedy-whattodo-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body text-muted">
+                              {currentRemedy.whatToDoNow}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Suggested Medicine / Treatment */}
+                        <div className="accordion-item">
+                          <h2 className="accordion-header" id="remedy-treatment-heading">
+                            <button className="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-treatment-collapse" aria-expanded="false" aria-controls="remedy-treatment-collapse">
+                              <i className="bi bi-capsule-pill me-2 text-danger"></i>{uiText[selectedLanguage].suggestedTreatment}
+                            </button>
+                          </h2>
+                          <div id="remedy-treatment-collapse" className="accordion-collapse collapse" aria-labelledby="remedy-treatment-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body">
+                               <div className="mb-3">
+                                <h6 className="fw-bold text-success-emphasis mb-1">
+                                  <i className="bi bi-flower1 me-2"></i>{uiText[selectedLanguage].culturalPractice}
+                                </h6>
+                                <p className="text-muted small">{currentRemedy.culturalPractice}</p>
+                              </div>
+                              <div>
+                                <h6 className="fw-bold text-danger-emphasis mb-1">
+                                  <i className="bi bi-eyedropper me-2"></i>{uiText[selectedLanguage].chemicalControl}
+                                </h6>
+                                <p className="text-muted small">{currentRemedy.chemicalControl}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Important Note */}
+                        <div className="accordion-item rounded-bottom-4">
+                          <h2 className="accordion-header" id="remedy-note-heading">
+                            <button className="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#remedy-note-collapse" aria-expanded="false" aria-controls="remedy-note-collapse">
+                              <i className="bi bi-exclamation-triangle-fill me-2 text-warning"></i>{uiText[selectedLanguage].importantNote}
+                            </button>
+                          </h2>
+                          <div id="remedy-note-collapse" className="accordion-collapse collapse" aria-labelledby="remedy-note-heading" data-bs-parent="#remedyAccordion">
+                            <div className="accordion-body">
+                               <div className="alert alert-warning d-flex align-items-center p-3 small mb-0">
+                                <i className="bi bi-exclamation-diamond-fill me-2 fs-5"></i>
+                                <div>{currentRemedy.importantNote}</div>
+                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="col-md-6">
-                      <h5 className="fw-semibold text-danger">Don'ts:</h5>
-                      <ul className="list-unstyled text-muted">
-                        {currentRemedy.donts.map((item, index) => (
-                          <li key={index}><i className="bi bi-x-lg text-danger me-2"></i>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <h5 className="fw-semibold text-success">What to do from now:</h5>
-                    <p className="text-muted">{currentRemedy.whatToDoNow}</p>
-                  </div>
-                  <div className="mb-3">
-                    <h5 className="fw-semibold text-success">Suggested Medicine / Treatment:</h5>
-                    <h6 className="fw-semibold mt-2">Cultural Practice:</h6>
-                    <p className="text-muted">{currentRemedy.culturalPractice}</p>
-                    <h6 className="fw-semibold mt-2">Chemical Control:</h6>
-                    <p className="text-muted">{currentRemedy.chemicalControl}</p>
-                  </div>
-                  <div className="alert alert-warning small p-3 rounded-3">
-                    <i className="bi bi-info-circle-fill me-2"></i>
-                    <strong>Important:</strong> {currentRemedy.importantNote}
                   </div>
                 </div>
               )}
