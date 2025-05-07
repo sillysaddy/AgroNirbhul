@@ -1,54 +1,83 @@
 import React, { useState } from 'react';
-import DiseaseDetection from './DiseaseDetection';
+import { Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import LandingPage from './LandingPage';
-import Login from './Login';
-import Register from './Register';
-
-type Page = 'landing' | 'login' | 'register' | 'dashboard' | 'diseaseDetection';
+import LoginPage from './LoginPage';
+import RegistrationPage from './RegistrationPage';
+import DashboardPage from './DashboardPage';
+import DiseaseDetection from './DiseaseDetection'; // Import DiseaseDetection
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('landing');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const navigate = useNavigate();
 
-  const Dashboard = () => (
-    <div className="p-4">
-      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-      <button
-        onClick={() => setCurrentPage('diseaseDetection')}
-        className="mr-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-      >
-        Disease Detection
-      </button>
-    </div>
-  );
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'landing':
-        return <LandingPage onLogin={() => setCurrentPage('login')} onRegister={() => setCurrentPage('register')} />;
-      case 'login':
-        return <Login onLoginSuccess={() => setCurrentPage('dashboard')} onBack={() => setCurrentPage('landing')} />;
-      case 'register':
-        return <Register onRegisterSuccess={() => setCurrentPage('dashboard')} onBack={() => setCurrentPage('landing')} />;
-      case 'dashboard':
-        return <Dashboard />;
-      case 'diseaseDetection':
-        return (
-          <div>
-            <button
-              onClick={() => setCurrentPage('dashboard')}
-              className="m-4 px-3 py-1 bg-gray-300 text-black rounded hover:bg-gray-400"
-            >
-              &larr; Back to Dashboard
-            </button>
-            <DiseaseDetection />
-          </div>
-        );
-      default:
-        return null;
-    }
+  const handleLoginSuccess = () => {
+    // Here you would typically handle the actual login logic (e.g., API call)
+    // For now, we'll just simulate a successful login
+    setIsLoggedIn(true);
+    navigate('/dashboard');
   };
 
-  return <div>{renderPage()}</div>;
+  const handleRegisterSuccess = () => {
+    // Similar to login, handle registration then navigate
+    setIsLoggedIn(true);
+    navigate('/dashboard'); // Or navigate to login first: navigate('/login');
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    navigate('/');
+  };
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={<LandingPage />} // Pass navigate if needed for buttons, or use Link in LandingPage
+      />
+      <Route
+        path="/login"
+        element={
+          !isLoggedIn ? (
+            <LoginPage onLoginSuccess={handleLoginSuccess} />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          !isLoggedIn ? (
+            <RegistrationPage onRegisterSuccess={handleRegisterSuccess} />
+          ) : (
+            <Navigate to="/dashboard" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard"
+        element={
+          isLoggedIn ? (
+            <DashboardPage userName="Current User" onLogout={handleLogout} />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      <Route
+        path="/dashboard/detect"
+        element={
+          isLoggedIn ? (
+            <DiseaseDetection />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+      {/* Fallback route for unknown paths */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
 export default App;
